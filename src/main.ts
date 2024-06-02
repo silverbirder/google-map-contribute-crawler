@@ -21,8 +21,11 @@ const crawler = new PlaywrightCrawler(
     launchContext: {
       // Here you can set options that are passed to the playwright .launch() function.
       launchOptions: {
-        headless: true,
-        args: ["--deny-permission-prompts"],
+        headless: false,
+        args: [
+          "--deny-permission-prompts",
+          `--lang=${process.env.LANG ?? "ja"}`,
+        ],
       },
     },
   },
