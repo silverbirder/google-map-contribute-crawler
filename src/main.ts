@@ -1,12 +1,17 @@
 import "dotenv/config";
 
 // For more information, see https://crawlee.dev/
-import { Configuration, PlaywrightCrawler } from "crawlee";
+import {
+  BrowserName,
+  Configuration,
+  DeviceCategory,
+  OperatingSystemsName,
+  PlaywrightCrawler,
+} from "crawlee";
 
 import { router } from "./routes.js";
 
 const startUrls = process.env.START_URLS?.split(",") ?? [];
-console.log({ startUrls });
 const config = new Configuration({ persistStorage: false });
 
 const crawler = new PlaywrightCrawler(
@@ -21,11 +26,25 @@ const crawler = new PlaywrightCrawler(
     launchContext: {
       // Here you can set options that are passed to the playwright .launch() function.
       launchOptions: {
-        headless: true,
+        headless: false,
         args: [
           "--deny-permission-prompts",
           `--lang=${process.env.LANG ?? "ja"}`,
         ],
+      },
+    },
+    browserPoolOptions: {
+      useFingerprints: true,
+      fingerprintOptions: {
+        fingerprintGeneratorOptions: {
+          browsers: [
+            {
+              name: BrowserName.chrome,
+            },
+          ],
+          devices: [DeviceCategory.mobile],
+          operatingSystems: [OperatingSystemsName.android],
+        },
       },
     },
   },
