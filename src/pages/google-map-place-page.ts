@@ -134,11 +134,13 @@ export class GoogleMapPlacePage {
 
         // クリップボードの内容をログに出力
         this.log.info("Link copied to clipboard.", { clipboardText });
-        urls.push(clipboardText);
+        // 短縮URLを元のURLに展開
+        const expandedUrl = await this.expandShortUrl(clipboardText);
+        urls.push(expandedUrl);
         checkedReviews.push(name);
+        this.log.info("Expanded URL", { expandedUrl });
         this.log.info("Link copied. Pressing ESC to close the dialog.");
         await this.page.keyboard.press("Escape");
-
         return true;
       } catch (error) {
         retryCount++;
@@ -148,5 +150,15 @@ export class GoogleMapPlacePage {
 
     this.log.error("Max retries reached, skipping to the next review.");
     return false;
+  }
+
+  private async expandShortUrl(shortUrl: string): Promise<string> {
+    this.log.info("Navigating to short URL to expand it.", { shortUrl });
+    const newPage = await this.page.context().newPage();
+    await newPage.goto(shortUrl);
+    await newPage.waitForURL((url) => url.pathname.includes("/reviews/"));
+    const expandedUrl = newPage.url();
+    await newPage.close();
+    return expandedUrl;
   }
 }
