@@ -1,27 +1,33 @@
 import { Log } from "crawlee";
-import { type Page, Locator } from "playwright";
+import { Locator, type Page } from "playwright";
 
-export class GoogleMapContributeReviewsPage {
+export class GoogleMapPlacePage {
   readonly page: Page;
   readonly log: Log;
-  readonly handleRequest: (url: string) => void;
   private readonly maxRetries = 3;
 
-  constructor(
-    page: Page,
-    log: Log,
-    handleRequest: (url: string) => Promise<void>
-  ) {
+  constructor(page: Page, log: Log) {
     this.page = page;
     this.log = log;
-    this.handleRequest = handleRequest;
+  }
+
+  async clickReviewTab() {
+    this.log.info("Clicking the review tab...");
+
+    const reviewTabButton = await this.page.locator(
+      'button[role="tab"][aria-label*="クチコミ"]'
+    );
+    await reviewTabButton.click();
+    this.log.info("Review tab clicked.");
+    await this.page.waitForSelector(
+      'button[role="tab"][aria-label*="クチコミ"][aria-selected="true"]'
+    );
   }
 
   async collectUrlsWithScrolling(): Promise<string[]> {
     const urls: string[] = [];
     const checkedReviews: string[] = [];
     let scrollAttempts = 0;
-
     while (scrollAttempts <= 10) {
       this.log.info(`Starting scroll attempt`, { scrollAttempts });
 
@@ -31,12 +37,11 @@ export class GoogleMapContributeReviewsPage {
       }
 
       const reviews = await this.page
-        .locator("[data-review-id][tabindex]")
+        .locator('[aria-label$="クチコミへのアクション"]')
         .all();
       this.log.info(`Found reviews on the page`, {
         reviewCount: reviews.length,
       });
-
       if (checkedReviews.length !== reviews.length) {
         this.log.info("Processing next review.", {
           checkedReviewsCount: checkedReviews.length,
@@ -67,13 +72,18 @@ export class GoogleMapContributeReviewsPage {
   }
 
   private async scrollPage(): Promise<void> {
-    const tabPanel = await this.page.locator('[role="tabpanel"]');
-    const boundingBox = await tabPanel.boundingBox();
+    const reviewTabButton = await this.page.locator(
+      'button[role="tab"][aria-label*="クチコミ"]'
+    );
+    const boundingBox = await reviewTabButton.boundingBox();
     if (boundingBox) {
-      this.log.info("Moving mouse to center of tab panel.", { boundingBox });
+      this.log.info(
+        "Moving mouse to center of the last review action element.",
+        { boundingBox }
+      );
       await this.page.mouse.move(
-        boundingBox.x + boundingBox.width / 2,
-        boundingBox.y + boundingBox.height / 2
+        boundingBox.x,
+        boundingBox.y + boundingBox.height + 100
       );
     }
     for (let i = 0; i < 4; i++) {
@@ -89,6 +99,8 @@ export class GoogleMapContributeReviewsPage {
     urls: string[]
   ): Promise<boolean> {
     let retryCount = 0;
+    const ctx = this.page.context();
+    ctx.grantPermissions(["clipboard-read"]);
 
     while (retryCount < this.maxRetries) {
       try {
@@ -98,21 +110,34 @@ export class GoogleMapContributeReviewsPage {
         const name = (await nextReview.getAttribute("aria-label")) ?? "";
         this.log.info(`Review name`, { name });
 
-        this.log.info("Clicking on review.");
-        await nextReview.click({ position: { x: 10, y: 10 } });
+        await nextReview.click();
 
-        this.log.info("Waiting for place URL to load.");
-        await this.page.waitForURL((url) => url.pathname.includes("/place/"));
+        this.log.info("Waiting for the action menu to appear.");
+        await this.page.waitForSelector("#action-menu");
 
-        const url = this.page.url();
-        urls.push(url);
-        await this.handleRequest(url);
+        const shareOption = await this.page.locator(
+          'div[role="menuitemradio"]:has-text("クチコミを共有")'
+        );
+        await shareOption.click();
+
+        this.log.info(
+          "Clicked on 'クチコミを共有'. Waiting for 'リンクをコピー'."
+        );
+        await this.page.waitForSelector('button:has-text("リンクをコピー")');
+        const copyLinkButton = await this.page.locator(
+          'button:has-text("リンクをコピー")'
+        );
+        await copyLinkButton.click();
+        const clipboardText = await this.page.evaluate(async () => {
+          return await navigator.clipboard.readText();
+        });
+
+        // クリップボードの内容をログに出力
+        this.log.info("Link copied to clipboard.", { clipboardText });
+        urls.push(clipboardText);
         checkedReviews.push(name);
-        this.log.info(`Collected URL`, { url });
-
-        this.log.info("Returning to reviews page.");
-        await this.page.click('[aria-label="前に戻ります"]');
-        await this.page.waitForURL((url) => url.pathname.includes("/reviews/"));
+        this.log.info("Link copied. Pressing ESC to close the dialog.");
+        await this.page.keyboard.press("Escape");
 
         return true;
       } catch (error) {
