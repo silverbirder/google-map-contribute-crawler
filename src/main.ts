@@ -4,6 +4,7 @@ import "dotenv/config";
 import { Configuration, PlaywrightCrawler } from "crawlee";
 
 import { router } from "./routes.js";
+import { conn } from "./db/index.js";
 
 const startUrls = process.env.START_URLS?.split(",") ?? [];
 const config = new Configuration({ persistStorage: false });
@@ -45,4 +46,8 @@ const crawler = new PlaywrightCrawler(
   config
 );
 
-await crawler.run(startUrls);
+try {
+  await crawler.run(startUrls);
+} finally {
+  conn.end();
+}
