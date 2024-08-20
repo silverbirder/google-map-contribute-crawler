@@ -1,3 +1,4 @@
+import cookies from "./auth/cookie.json";
 import "dotenv/config";
 
 // For more information, see https://crawlee.dev/
@@ -28,20 +29,11 @@ const crawler = new PlaywrightCrawler(
         ],
       },
     },
-    // browserPoolOptions: {
-    //   useFingerprints: true,
-    //   fingerprintOptions: {
-    //     fingerprintGeneratorOptions: {
-    //       browsers: [
-    //         {
-    //           name: BrowserName.chrome,
-    //         },
-    //       ],
-    //       devices: [DeviceCategory.mobile],
-    //       operatingSystems: [OperatingSystemsName.android],
-    //     },
-    //   },
-    // },
+    preNavigationHooks: [
+      async (crawlingContext) => {
+        crawlingContext.page.context().addCookies(cookies as any);
+      },
+    ],
   },
   config
 );
