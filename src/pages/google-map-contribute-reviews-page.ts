@@ -1,16 +1,26 @@
 import { Log } from "crawlee";
 import { type Page, Locator } from "playwright";
 
+export type Contributor = {
+  userName: string;
+  profileImageUrl: string;
+} | null;
+
+type UserData = {
+  contributor: Contributor;
+};
+
 export class GoogleMapContributeReviewsPage {
   readonly page: Page;
   readonly log: Log;
-  readonly handleRequest: (url: string) => void;
+  readonly handleRequest: (url: string, userData: UserData) => void;
+  contributor: Contributor = null;
   private readonly maxRetries = 3;
 
   constructor(
     page: Page,
     log: Log,
-    handleRequest: (url: string) => Promise<void>
+    handleRequest: (url: string, userData: UserData) => Promise<void>
   ) {
     this.page = page;
     this.log = log;
@@ -21,6 +31,12 @@ export class GoogleMapContributeReviewsPage {
     const urls: string[] = [];
     const checkedReviews: string[] = [];
     let scrollAttempts = 0;
+    const userName = await this.extractUserName();
+    const profileImageUrl = await this.extractProfileImage();
+    this.contributor = {
+      userName,
+      profileImageUrl,
+    };
 
     while (scrollAttempts <= 10) {
       this.log.info(`Starting scroll attempt`, { scrollAttempts });
@@ -106,7 +122,7 @@ export class GoogleMapContributeReviewsPage {
 
         const url = this.page.url();
         urls.push(url);
-        await this.handleRequest(url);
+        await this.handleRequest(url, { contributor: this.contributor });
         checkedReviews.push(name);
         this.log.info(`Collected URL`, { url });
 
@@ -123,5 +139,19 @@ export class GoogleMapContributeReviewsPage {
 
     this.log.error("Max retries reached, skipping to the next review.");
     return false;
+  }
+
+  private async extractUserName(): Promise<string> {
+    const userNameElement = await this.page.locator('h1[role="button"]');
+    const userName = await userNameElement.textContent();
+    return userName?.trim() ?? "Unknown User";
+  }
+
+  private async extractProfileImage(): Promise<string> {
+    const profileImageElement = await this.page.locator(
+      'div[aria-label="プロフィール写真"] img'
+    );
+    const profileImageUrl = await profileImageElement.getAttribute("src");
+    return profileImageUrl ?? "No image URL found";
   }
 }

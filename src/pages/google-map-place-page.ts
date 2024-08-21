@@ -4,11 +4,13 @@ import { Locator, type Page } from "playwright";
 export class GoogleMapPlacePage {
   readonly page: Page;
   readonly log: Log;
+  readonly userName: string;
   private readonly maxRetries = 3;
 
-  constructor(page: Page, log: Log) {
+  constructor(page: Page, log: Log, userName: string) {
     this.page = page;
     this.log = log;
+    this.userName = userName;
   }
 
   async clickReviewTab() {
@@ -37,7 +39,9 @@ export class GoogleMapPlacePage {
       }
 
       const reviews = await this.page
-        .locator('[aria-label$="クチコミへのアクション"]')
+        .locator(
+          `[aria-label$="クチコミへのアクション"]:not([aria-label*="${this.userName} さんのクチコミへのアクション"])`
+        )
         .all();
       this.log.info(`Found reviews on the page`, {
         reviewCount: reviews.length,
