@@ -1,0 +1,1 @@
+ALTER TABLE "google-map-contrib_contributor" ADD COLUMN "contributorId" text;

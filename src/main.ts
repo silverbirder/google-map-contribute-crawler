@@ -17,12 +17,12 @@ const crawler = new PlaywrightCrawler(
     // Comment this option to scrape the full website.
     maxRequestsPerCrawl: 20,
     maxRequestRetries: 2,
-    requestHandlerTimeoutSecs: 1800,
+    requestHandlerTimeoutSecs: 3600,
     // Comment this option to scrape the full website.
     launchContext: {
       // Here you can set options that are passed to the playwright .launch() function.
       launchOptions: {
-        headless: false,
+        headless: true,
         args: [
           "--deny-permission-prompts",
           `--lang=${process.env.LANG ?? "ja"}`,

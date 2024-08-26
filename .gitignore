@@ -9,3 +9,4 @@ storage
 
 .env
 src/auth
+src/*.json

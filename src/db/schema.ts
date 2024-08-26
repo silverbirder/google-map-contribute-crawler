@@ -14,6 +14,8 @@ export const contributor = createTable("contributor", {
   id: serial("id").primaryKey(),
   name: text("name"),
   url: text("url"),
+  profileImageUrl: text("profileImageUrl"),
+  contributorId: text("contributorId"),
   createdAt: timestamp("created_at"),
   updatedAt: timestamp("updated_at"),
 });
@@ -22,6 +24,8 @@ export const place = createTable("place", {
   id: serial("id").primaryKey(),
   name: text("name"),
   url: text("url"),
+  profileImageUrl: text("profileImageUrl"),
+  address: text("address"),
   createdAt: timestamp("created_at"),
   updatedAt: timestamp("updated_at"),
 });

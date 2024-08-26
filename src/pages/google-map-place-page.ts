@@ -1,16 +1,19 @@
 import { Log } from "crawlee";
-import { Locator, type Page } from "playwright";
+import { type Page } from "playwright";
+import { Contributor, Place, Review } from "../types.js";
 
 export class GoogleMapPlacePage {
   readonly page: Page;
   readonly log: Log;
-  readonly userName: string;
+  readonly contributor: Contributor;
+  readonly place: Place;
   private readonly maxRetries = 3;
 
-  constructor(page: Page, log: Log, userName: string) {
+  constructor(page: Page, log: Log, contributor: Contributor, place: Place) {
     this.page = page;
     this.log = log;
-    this.userName = userName;
+    this.contributor = contributor;
+    this.place = place;
   }
 
   async clickReviewTab() {
@@ -26,8 +29,13 @@ export class GoogleMapPlacePage {
     );
   }
 
-  async collectUrlsWithScrolling(): Promise<string[]> {
-    const urls: string[] = [];
+  async collectUrlsWithScrolling(): Promise<
+    { review: Review; contributor: Contributor }[]
+  > {
+    const crawled: {
+      review: Review;
+      contributor: Contributor;
+    }[] = [];
     const checkedReviews: string[] = [];
     let scrollAttempts = 0;
     while (scrollAttempts <= 10) {
@@ -40,7 +48,7 @@ export class GoogleMapPlacePage {
 
       const reviews = await this.page
         .locator(
-          `[aria-label$="クチコミへのアクション"]:not([aria-label*="${this.userName} さんのクチコミへのアクション"])`
+          `[aria-label$="クチコミへのアクション"]:not([aria-label*="${this.contributor?.name} さんのクチコミへのアクション"])`
         )
         .all();
       this.log.info(`Found reviews on the page`, {
@@ -50,7 +58,7 @@ export class GoogleMapPlacePage {
         this.log.info("Processing next review.", {
           checkedReviewsCount: checkedReviews.length,
         });
-        const success = await this.processReview(reviews, checkedReviews, urls);
+        const success = await this.processReview(checkedReviews, crawled);
         if (success) {
           scrollAttempts = 0;
           this.log.info("Review processed successfully.");
@@ -70,9 +78,9 @@ export class GoogleMapPlacePage {
     }
 
     this.log.info(`Finished processing. Collected URLs.`, {
-      urlCount: urls.length,
+      urlCount: crawled.length,
     });
-    return urls;
+    return crawled;
   }
 
   private async scrollPage(): Promise<void> {
@@ -98,9 +106,8 @@ export class GoogleMapPlacePage {
   }
 
   private async processReview(
-    reviews: Locator[],
     checkedReviews: string[],
-    urls: string[]
+    crawled: { review: Review; contributor: Contributor }[]
   ): Promise<boolean> {
     let retryCount = 0;
     const ctx = this.page.context();
@@ -108,11 +115,35 @@ export class GoogleMapPlacePage {
 
     while (retryCount < this.maxRetries) {
       try {
+        const reviews = await this.page
+          .locator(
+            `[aria-label$="クチコミへのアクション"]:not([aria-label*="${this.contributor?.name} さんのクチコミへのアクション"])`
+          )
+          .all();
         const nextReview = reviews[checkedReviews.length];
         this.log.info(`Processing review`, { index: checkedReviews.length });
         await nextReview.scrollIntoViewIfNeeded();
-        const name = (await nextReview.getAttribute("aria-label")) ?? "";
-        this.log.info(`Review name`, { name });
+        const contributorName =
+          (await nextReview.getAttribute("aria-label"))?.replace(
+            " さんのクチコミへのアクション",
+            ""
+          ) ?? "";
+        const reviewId =
+          (await nextReview.getAttribute("data-review-id")) ?? "";
+        this.log.info(`Contributor name`, { contributorName });
+        const contributorUrl =
+          (await this.page
+            .locator(`[data-review-id='${reviewId}'][data-href]`)
+            .first()
+            .getAttribute("data-href")) ?? "";
+        const contributorIdMatch = contributorUrl.match(
+          /contrib\/(\d+)\/reviews/
+        );
+        const contributorId = contributorIdMatch ? contributorIdMatch[1] : "";
+        const contributorImg =
+          (await this.page
+            .locator(`button[aria-label="写真: ${contributorName}"] img`)
+            .getAttribute("src")) ?? "";
 
         await nextReview.click();
 
@@ -138,16 +169,30 @@ export class GoogleMapPlacePage {
 
         // クリップボードの内容をログに出力
         this.log.info("Link copied to clipboard.", { clipboardText });
-        // 短縮URLを元のURLに展開
-        const expandedUrl = await this.expandShortUrl(clipboardText);
-        urls.push(expandedUrl);
-        checkedReviews.push(name);
-        this.log.info("Expanded URL", { expandedUrl });
+        // // 短縮URLを元のURLに展開
+        // const expandedUrl = await this.expandShortUrl(clipboardText);
+        crawled.push({
+          review: {
+            contributorId: contributorId,
+            reviewId: reviewId,
+            place: this.place,
+            url: clipboardText,
+          },
+          contributor: {
+            name: contributorName,
+            url: `https://www.google.com/maps/contrib/${contributorId}/reviews`,
+            profileImageUrl: contributorImg,
+            contributorId: contributorId,
+          },
+        });
+        checkedReviews.push(contributorName);
+        this.log.info("crawled", { crawled });
         this.log.info("Link copied. Pressing ESC to close the dialog.");
         await this.page.keyboard.press("Escape");
         return true;
       } catch (error) {
         retryCount++;
+        await this.page.waitForTimeout(retryCount * 1000);
         this.log.error(`Attempt failed`, { retryCount, error });
       }
     }

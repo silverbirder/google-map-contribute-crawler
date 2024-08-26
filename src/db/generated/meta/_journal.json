@@ -8,6 +8,27 @@
       "when": 1723988673237,
       "tag": "0000_flowery_lightspeed",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1724330511471,
+      "tag": "0001_calm_omega_red",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1724331321864,
+      "tag": "0002_wonderful_queen_noir",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1724514216144,
+      "tag": "0003_next_bastion",
+      "breakpoints": true
     }
   ]
 }
