@@ -60,7 +60,7 @@ router.addDefaultHandler(async ({ page, log, addRequests }) => {
       },
     }));
     await addRequests(requests);
-  } else if (originalUrl.includes("/maps/")) {
+  } else if (originalUrl.includes("/maps")) {
     const googleAuthPage = new GoogleAuthPage(page);
     await googleAuthPage.signIn();
   }

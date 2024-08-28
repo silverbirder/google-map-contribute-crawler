@@ -42,7 +42,7 @@ export const saveReviewIfNotExistsOrUpdate = async (reviewData: Review) => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    console.log("Review saved:", reviewData.url);
+    console.log("Review saved:", contributorRecord.id, placeRecord.id);
   } else {
     const currentReview = existingReview[0];
 

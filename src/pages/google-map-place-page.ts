@@ -1,5 +1,5 @@
 import { Log } from "crawlee";
-import { type Page } from "playwright";
+import { Locator, type Page } from "playwright";
 import { Contributor, Place, Review } from "../types.js";
 
 export class GoogleMapPlacePage {
@@ -36,44 +36,39 @@ export class GoogleMapPlacePage {
       review: Review;
       contributor: Contributor;
     }[] = [];
-    const checkedReviews: string[] = [];
+    this.log.info("Starting to scroll the page until the end.");
     let scrollAttempts = 0;
-    while (scrollAttempts <= 10) {
-      this.log.info(`Starting scroll attempt`, { scrollAttempts });
-
-      if (checkedReviews.length % 10 === 0) {
-        this.log.info("Scrolling page to load more reviews.");
-        await this.scrollPage();
-      }
-
-      const reviews = await this.page
+    let lastReviewCount = 0;
+    while (scrollAttempts <= 1) {
+      this.log.info(`Scrolling page`, { scrollAttempts });
+      await this.scrollPage();
+      const reviewCount = await this.page
         .locator(
           `[aria-label$="クチコミへのアクション"]:not([aria-label*="${this.contributor?.name} さんのクチコミへのアクション"])`
         )
-        .all();
-      this.log.info(`Found reviews on the page`, {
-        reviewCount: reviews.length,
-      });
-      if (checkedReviews.length !== reviews.length) {
-        this.log.info("Processing next review.", {
-          checkedReviewsCount: checkedReviews.length,
-        });
-        const success = await this.processReview(checkedReviews, crawled);
-        if (success) {
-          scrollAttempts = 0;
-          this.log.info("Review processed successfully.");
-        } else {
-          scrollAttempts++;
-          this.log.warning(
-            "Failed to process review. Incrementing scroll attempt.",
-            { scrollAttempts }
-          );
-        }
-      } else {
+        .count();
+      if (lastReviewCount === reviewCount) {
         scrollAttempts++;
-        this.log.warning("No new reviews found. Incrementing scroll attempt.", {
-          scrollAttempts,
-        });
+      }
+      lastReviewCount = reviewCount;
+    }
+
+    this.log.info("Finished scrolling. Now collecting all reviews.");
+
+    const reviews = await this.page
+      .locator(
+        `[aria-label$="クチコミへのアクション"]:not([aria-label*="${this.contributor?.name} さんのクチコミへのアクション"])`
+      )
+      .all();
+    this.log.info(`Found reviews on the page`, { reviewCount: reviews.length });
+
+    for (const [index, review] of reviews.entries()) {
+      this.log.info(`Processing review`, { index });
+      const success = await this.processReview(review, crawled);
+      if (success) {
+        this.log.info("Review processed successfully.");
+      } else {
+        this.log.warning("Failed to process review.");
       }
     }
 
@@ -106,7 +101,7 @@ export class GoogleMapPlacePage {
   }
 
   private async processReview(
-    checkedReviews: string[],
+    review: Locator,
     crawled: { review: Review; contributor: Contributor }[]
   ): Promise<boolean> {
     let retryCount = 0;
@@ -115,21 +110,12 @@ export class GoogleMapPlacePage {
 
     while (retryCount < this.maxRetries) {
       try {
-        const reviews = await this.page
-          .locator(
-            `[aria-label$="クチコミへのアクション"]:not([aria-label*="${this.contributor?.name} さんのクチコミへのアクション"])`
-          )
-          .all();
-        const nextReview = reviews[checkedReviews.length];
-        this.log.info(`Processing review`, { index: checkedReviews.length });
-        await nextReview.scrollIntoViewIfNeeded();
         const contributorName =
-          (await nextReview.getAttribute("aria-label"))?.replace(
+          (await review.getAttribute("aria-label"))?.replace(
             " さんのクチコミへのアクション",
             ""
           ) ?? "";
-        const reviewId =
-          (await nextReview.getAttribute("data-review-id")) ?? "";
+        const reviewId = (await review.getAttribute("data-review-id")) ?? "";
         this.log.info(`Contributor name`, { contributorName });
         const contributorUrl =
           (await this.page
@@ -144,39 +130,12 @@ export class GoogleMapPlacePage {
           (await this.page
             .locator(`button[aria-label="写真: ${contributorName}"] img`)
             .getAttribute("src")) ?? "";
-
-        await nextReview.click();
-
-        this.log.info("Waiting for the action menu to appear.");
-        await this.page.waitForSelector("#action-menu");
-
-        const shareOption = await this.page.locator(
-          'div[role="menuitemradio"]:has-text("クチコミを共有")'
-        );
-        await shareOption.click();
-
-        this.log.info(
-          "Clicked on 'クチコミを共有'. Waiting for 'リンクをコピー'."
-        );
-        await this.page.waitForSelector('button:has-text("リンクをコピー")');
-        const copyLinkButton = await this.page.locator(
-          'button:has-text("リンクをコピー")'
-        );
-        await copyLinkButton.click();
-        const clipboardText = await this.page.evaluate(async () => {
-          return await navigator.clipboard.readText();
-        });
-
-        // クリップボードの内容をログに出力
-        this.log.info("Link copied to clipboard.", { clipboardText });
-        // // 短縮URLを元のURLに展開
-        // const expandedUrl = await this.expandShortUrl(clipboardText);
         crawled.push({
           review: {
             contributorId: contributorId,
             reviewId: reviewId,
             place: this.place,
-            url: clipboardText,
+            url: "",
           },
           contributor: {
             name: contributorName,
@@ -185,10 +144,7 @@ export class GoogleMapPlacePage {
             contributorId: contributorId,
           },
         });
-        checkedReviews.push(contributorName);
         this.log.info("crawled", { crawled });
-        this.log.info("Link copied. Pressing ESC to close the dialog.");
-        await this.page.keyboard.press("Escape");
         return true;
       } catch (error) {
         retryCount++;

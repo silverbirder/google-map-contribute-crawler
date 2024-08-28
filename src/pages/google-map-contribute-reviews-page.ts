@@ -3,7 +3,7 @@ import { type Page, Locator } from "playwright";
 import { Contributor, Review } from "../types.js";
 
 export class GoogleMapContributeReviewsPage {
-  readonly page: Page;
+  page: Page;
   readonly log: Log;
   contributor: Contributor = null;
   private readonly maxRetries = 10;
@@ -34,20 +34,15 @@ export class GoogleMapContributeReviewsPage {
 
     while (scrollAttempts <= 10) {
       this.log.info(`Starting scroll attempt`, { scrollAttempts });
-
-      if (checkedReviews.length % 10 === 0) {
-        this.log.info("Scrolling page to load more reviews.");
-        await this.scrollPage();
-      }
-
-      const reviews = await this.page
+      await this.page.waitForSelector("[data-review-id][tabindex]");
+      const reviewCount = await this.page
         .locator("[data-review-id][tabindex]")
-        .all();
+        .count();
       this.log.info(`Found reviews on the page`, {
-        reviewCount: reviews.length,
+        reviewCount,
       });
 
-      if (checkedReviews.length !== reviews.length) {
+      if (checkedReviews.length < reviewCount) {
         this.log.info("Processing next review.", {
           checkedReviewsCount: checkedReviews.length,
         });
@@ -67,6 +62,7 @@ export class GoogleMapContributeReviewsPage {
         }
       } else {
         scrollAttempts++;
+        await this.scrollPage();
         this.log.warning("No new reviews found. Incrementing scroll attempt.", {
           scrollAttempts,
         });
@@ -102,10 +98,9 @@ export class GoogleMapContributeReviewsPage {
 
     while (retryCount < this.maxRetries) {
       try {
-        const reviews = await this.page
+        const nextReview = await this.page
           .locator("[data-review-id][tabindex]")
-          .all();
-        const nextReview = reviews[checkedReviews.length];
+          .nth(checkedReviews.length);
         this.log.info(`Processing review`, { index: checkedReviews.length });
         await nextReview.scrollIntoViewIfNeeded();
         const placeName = (await nextReview.getAttribute("aria-label")) ?? "";
