@@ -5,21 +5,21 @@ import {
   GoogleAuthPage,
 } from "./pages/index.js";
 import { saveContributorIfNotExistsOrUpdate } from "./db/contribute.js";
-import { Contributor, Review } from "./types.js";
+import { Contributor, Place } from "./types.js";
 import { savePlaceIfNotExistsOrUpdate } from "./db/place.js";
 import { saveReviewIfNotExistsOrUpdate } from "./db/review.js";
 
 export const router = createPlaywrightRouter();
 
 router.addHandler("map-place", async ({ page, log, request }) => {
-  const { contributor, review } = <
-    { contributor: Contributor; review: Review }
-  >request.userData;
+  const { contributor, place } = <{ contributor: Contributor; place: Place }>(
+    request.userData
+  );
   const googleMapPlacePage = new GoogleMapPlacePage(
     page,
     log,
     contributor,
-    review.place
+    place
   );
   await googleMapPlacePage.clickReviewTab();
   const crawled = await googleMapPlacePage.collectUrlsWithScrolling();
@@ -56,7 +56,7 @@ router.addDefaultHandler(async ({ page, log, addRequests }) => {
       label: "map-place",
       userData: {
         contributor,
-        review,
+        place: review.place,
       },
     }));
     await addRequests(requests);

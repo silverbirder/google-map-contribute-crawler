@@ -45,3 +45,30 @@ export const saveContributorIfNotExistsOrUpdate = async (
     console.log("Contributor updated:", contributorData.name);
   }
 };
+
+export const getContributorById = async (
+  contributorId: number
+): Promise<Contributor | null> => {
+  const existingContributor = await db
+    .select()
+    .from(contributor)
+    .where(eq(contributor.id, contributorId))
+    .limit(1);
+
+  if (existingContributor.length === 0) {
+    console.log("Contributor not found with id:", contributorId);
+    return null;
+  } else {
+    const contributorData = existingContributor[0];
+
+    const contributor: Contributor = {
+      name: contributorData.name ?? "",
+      url: contributorData.url ?? "",
+      profileImageUrl: contributorData.profileImageUrl ?? "",
+      contributorId: contributorData.contributorId ?? "",
+    };
+
+    console.log("Contributor found:", contributor.name);
+    return contributor;
+  }
+};
