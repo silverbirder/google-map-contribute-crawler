@@ -1,12 +1,12 @@
 import { Log } from "crawlee";
-import { type Page, Locator } from "playwright";
+import { type Page } from "playwright";
 import { Contributor, Review } from "../types.js";
 
 export class GoogleMapContributeReviewsPage {
   page: Page;
   readonly log: Log;
   contributor: Contributor = null;
-  private readonly maxRetries = 10;
+  private readonly maxRetries = 3;
 
   constructor(page: Page, log: Log) {
     this.page = page;
@@ -20,6 +20,7 @@ export class GoogleMapContributeReviewsPage {
     const crawledReviews: Review[] = [];
     const checkedReviews: string[] = [];
     let scrollAttempts = 0;
+    let retryCount = 0;
     const name = await this.extractUserName();
     const profileImageUrl = await this.extractProfileImage();
     const url = this.page.url();
@@ -32,40 +33,89 @@ export class GoogleMapContributeReviewsPage {
       contributorId,
     };
 
-    while (scrollAttempts <= 10) {
-      this.log.info(`Starting scroll attempt`, { scrollAttempts });
-      await this.page.waitForSelector("[data-review-id][tabindex]");
-      const reviewCount = await this.page
-        .locator("[data-review-id][tabindex]")
-        .count();
-      this.log.info(`Found reviews on the page`, {
-        reviewCount,
-      });
-
-      if (checkedReviews.length < reviewCount) {
-        this.log.info("Processing next review.", {
-          checkedReviewsCount: checkedReviews.length,
+    while (scrollAttempts <= 10 && retryCount < this.maxRetries) {
+      try {
+        if (checkedReviews.length !== 0 && checkedReviews.length % 40 === 0) {
+          const res = await this.page.reload();
+          this.log.info(`this.page.reload()`);
+          await res?.finished();
+          await this.page.waitForTimeout(5000);
+          const lastReviewId = checkedReviews[checkedReviews.length - 1];
+          this.log.info(`lastReviewId: ${lastReviewId}`);
+          while (true) {
+            await this.scrollPage();
+            const reviewCount = await this.page
+              .locator(`[data-review-id="${lastReviewId}"]`)
+              .count();
+            if (reviewCount > 0) {
+              this.log.info(`Found lastReviewId`);
+              break;
+            }
+          }
+        }
+        this.log.info(`Starting scroll attempt`, { scrollAttempts });
+        const reviewCount = await this.page
+          .locator("[data-review-id][tabindex]")
+          .count();
+        this.log.info(`Found reviews on the page`, {
+          reviewCount,
         });
-        const success = await this.processReview(
-          checkedReviews,
-          crawledReviews
+
+        console.log(
+          "checkedReviews.length < reviewCount",
+          `${checkedReviews.length} < ${reviewCount}`
         );
-        if (success) {
-          scrollAttempts = 0;
-          this.log.info("Review processed successfully.");
+        if (checkedReviews.length < reviewCount) {
+          this.log.info("Processing next review.", {
+            checkedReviewsCount: checkedReviews.length,
+          });
+          const success = await this.processReview(
+            checkedReviews,
+            crawledReviews
+          );
+          if (success) {
+            scrollAttempts = 0;
+            retryCount = 0;
+            this.log.info("Review processed successfully.");
+          } else {
+            scrollAttempts++;
+            this.log.warning(
+              "Failed to process review. Incrementing scroll attempt.",
+              { scrollAttempts }
+            );
+          }
         } else {
           scrollAttempts++;
+          await this.scrollPage();
           this.log.warning(
-            "Failed to process review. Incrementing scroll attempt.",
-            { scrollAttempts }
+            "No new reviews found. Incrementing scroll attempt.",
+            {
+              scrollAttempts,
+            }
           );
         }
-      } else {
-        scrollAttempts++;
-        await this.scrollPage();
-        this.log.warning("No new reviews found. Incrementing scroll attempt.", {
-          scrollAttempts,
+      } catch (error) {
+        retryCount++;
+        this.log.error(`collectUrlsWithScrolling Attempt failed`, {
+          retryCount,
+          error,
         });
+        this.page = await this.page.context().newPage();
+        await this.page.goto(url);
+        this.log.info(`this.page.goto(${url})`);
+        await this.page.waitForURL((url) => url.pathname.includes("/reviews/"));
+        const lastReviewId = checkedReviews[checkedReviews.length - 1];
+        this.log.info(`lastReviewId: ${lastReviewId}`);
+        while (true) {
+          await this.scrollPage();
+          const reviewCount = await this.page
+            .locator(`[data-review-id="${lastReviewId}"]`)
+            .count();
+          if (reviewCount > 0) {
+            this.log.info(`Found lastReviewId`);
+            break;
+          }
+        }
       }
     }
 
@@ -142,7 +192,7 @@ export class GoogleMapContributeReviewsPage {
             url: "",
           };
           crawledReviews.push(crawledReview);
-          checkedReviews.push(placeName);
+          checkedReviews.push(reviewId);
           this.log.info(`Collected Review`, { crawledReview });
         } else {
           const reviewUrl = this.page.url();
@@ -167,19 +217,20 @@ export class GoogleMapContributeReviewsPage {
             url: reviewUrl,
           };
           crawledReviews.push(crawledReview);
-          checkedReviews.push(placeName);
+          checkedReviews.push(reviewId);
           this.log.info(`Collected Review`, { crawledReview });
         }
 
         this.log.info("Returning to reviews page.");
         await this.page.click('[aria-label="前に戻ります"]');
         await this.page.waitForURL((url) => url.pathname.includes("/reviews/"));
+        await this.page.waitForSelector("[data-review-id][tabindex]");
 
         return true;
       } catch (error) {
         retryCount++;
         await this.page.waitForTimeout(retryCount * 1000);
-        this.log.error(`Attempt failed`, { retryCount, error });
+        this.log.error(`processReview Attempt failed`, { retryCount, error });
       }
     }
 

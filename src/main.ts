@@ -8,7 +8,10 @@ import { router } from "./routes.js";
 import { conn } from "./db/index.js";
 
 const startUrls = process.env.START_URLS?.split(",") ?? [];
-const config = new Configuration({ persistStorage: false });
+const config = new Configuration({
+  persistStorage: false,
+  availableMemoryRatio: 0.75,
+});
 
 const crawler = new PlaywrightCrawler(
   {
@@ -32,6 +35,22 @@ const crawler = new PlaywrightCrawler(
     preNavigationHooks: [
       async (crawlingContext) => {
         crawlingContext.page.context().addCookies(cookies as any);
+        await crawlingContext.page.route("**/*", (route) => {
+          const request = route.request();
+          if (
+            request.resourceType() === "image" ||
+            request.resourceType() === "media"
+          ) {
+            const url = new URL(request.url());
+            if (url.hostname !== "lh3.googleusercontent.com") {
+              route.abort();
+            } else {
+              route.continue();
+            }
+          } else {
+            route.continue();
+          }
+        });
       },
     ],
   },
