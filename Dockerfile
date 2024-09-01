@@ -16,6 +16,8 @@ COPY --chown=myuser . ./
 
 # Install all dependencies and build the project.
 # Don't audit to speed up the installation.
+RUN mkdir -p ./src/auth
+RUN echo '[]' > ./src/auth/cookie.json
 RUN npm run build
 
 # Create final image
@@ -27,6 +29,7 @@ COPY --from=builder --chown=myuser /home/myuser/dist ./dist
 # Copy just package.json and package-lock.json
 # to speed up the build using Docker layer cache.
 COPY --chown=myuser package*.json ./
+RUN echo '[]' > ./dist/auth/cookie.json
 
 # Install NPM packages, skip optional and development dependencies to
 # keep the image small. Avoid logging too much and print the dependency
@@ -45,7 +48,7 @@ RUN npm --quiet set progress=false \
 # for most source file changes.
 COPY --chown=myuser . ./
 
-RUN npx playwright install
+RUN npx playwright install chromium
 
 # Run the image. If you know you won't need headful browsers,
 # you can remove the XVFB start script for a micro perf gain.

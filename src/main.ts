@@ -1,4 +1,4 @@
-import cookies from "./auth/cookie.json";
+import cookies from "./auth/cookie.json" assert { type: "json" };
 import "dotenv/config";
 
 // For more information, see https://crawlee.dev/
@@ -10,7 +10,6 @@ import { conn } from "./db/index.js";
 const startUrls = process.env.START_URLS?.split(",") ?? [];
 const config = new Configuration({
   persistStorage: false,
-  availableMemoryRatio: 0.75,
 });
 
 const crawler = new PlaywrightCrawler(
