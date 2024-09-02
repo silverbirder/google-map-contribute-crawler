@@ -4,14 +4,74 @@ import {
   GoogleMapPlacePage,
   GoogleAuthPage,
 } from "./pages/index.js";
-import { saveContributorIfNotExistsOrUpdate } from "./db/contribute.js";
+import {
+  getContributorIdByContributorId,
+  saveContributorIfNotExistsOrUpdate,
+} from "./db/contribute.js";
 import { Contributor, Place } from "./types.js";
-import { savePlaceIfNotExistsOrUpdate } from "./db/place.js";
+import {
+  getPlacesByContributorId,
+  savePlaceIfNotExistsOrUpdate,
+} from "./db/place.js";
 import { saveReviewIfNotExistsOrUpdate } from "./db/review.js";
 
 export const router = createPlaywrightRouter();
 
-router.addHandler("map-place", async ({ page, log, request }) => {
+router.addDefaultHandler(async ({ page, log, addRequests }) => {
+  const googleMapContributeReviewsPage = new GoogleMapContributeReviewsPage(
+    page,
+    log
+  );
+  const type = process.env.TYPE;
+  if (type === "contrib") {
+    // https://www.google.com/maps/contrib/103442456215724044802/reviews
+    const { contributor } =
+      await googleMapContributeReviewsPage.getContributor();
+    await saveContributorIfNotExistsOrUpdate(contributor);
+    const { reviews } =
+      await googleMapContributeReviewsPage.collectUrlsWithScrolling();
+    await Promise.all(
+      reviews.map(async (review) => {
+        await savePlaceIfNotExistsOrUpdate(review.place);
+      })
+    );
+    await Promise.all(
+      reviews.map(async (review) => {
+        await saveReviewIfNotExistsOrUpdate(review);
+      })
+    );
+  } else if (type === "contrib-place") {
+    // https://www.google.com/maps/contrib/103442456215724044802/reviews
+    const { contributor } =
+      await googleMapContributeReviewsPage.getContributor();
+    const contributorId = await getContributorIdByContributorId(
+      contributor?.contributorId ?? ""
+    );
+    if (!contributorId) {
+      log.info("Not found contributor", { contributor });
+      return;
+    }
+    const places = await getPlacesByContributorId(contributorId);
+    const requests = places
+      .filter((place) => place.url !== "")
+      .map((place) => ({
+        url: place.url,
+        label: "contrib-place",
+        userData: {
+          contributor,
+          place,
+        },
+      }));
+    await addRequests(requests);
+  } else if (type === "place") {
+  } else if (type === "place-contrib") {
+  } else if (type === "auth") {
+    const googleAuthPage = new GoogleAuthPage(page);
+    await googleAuthPage.signIn();
+  }
+});
+
+router.addHandler("contrib-place", async ({ page, log, request }) => {
   const { contributor, place } = <{ contributor: Contributor; place: Place }>(
     request.userData
   );
@@ -24,44 +84,13 @@ router.addHandler("map-place", async ({ page, log, request }) => {
   await googleMapPlacePage.clickReviewTab();
   const crawled = await googleMapPlacePage.collectUrlsWithScrolling();
   await Promise.all(
-    crawled.map(async ({ review, contributor }) => {
+    crawled.map(async ({ contributor }) => {
       await saveContributorIfNotExistsOrUpdate(contributor);
+    })
+  );
+  await Promise.all(
+    crawled.map(async ({ review }) => {
       await saveReviewIfNotExistsOrUpdate(review);
     })
   );
-});
-
-router.addDefaultHandler(async ({ page, log, addRequests }) => {
-  const originalUrl = page.url();
-  if (originalUrl.includes("/maps/contrib/")) {
-    const googleMapContributeReviewsPage = new GoogleMapContributeReviewsPage(
-      page,
-      log
-    );
-    const { contributor, reviews } =
-      await googleMapContributeReviewsPage.collectUrlsWithScrolling();
-    await saveContributorIfNotExistsOrUpdate(contributor);
-    await Promise.all(
-      reviews.map(async (review) => {
-        await savePlaceIfNotExistsOrUpdate(review.place);
-      })
-    );
-    await Promise.all(
-      reviews.map(async (review) => {
-        await saveReviewIfNotExistsOrUpdate(review);
-      })
-    );
-    const requests = reviews.map((review) => ({
-      url: review.place.url,
-      label: "map-place",
-      userData: {
-        contributor,
-        place: review.place,
-      },
-    }));
-    await addRequests(requests);
-  } else if (originalUrl.includes("/maps")) {
-    const googleAuthPage = new GoogleAuthPage(page);
-    await googleAuthPage.signIn();
-  }
 });

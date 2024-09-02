@@ -13,25 +13,29 @@ export class GoogleMapContributeReviewsPage {
     this.log = log;
   }
 
+  async getContributor(): Promise<{ contributor: Contributor }> {
+    const name = await this.extractUserName();
+    const profileImageUrl = await this.extractProfileImage();
+    const url = this.page.url();
+    const contributorIdMatch = url.match(/contrib\/(\d+)\/reviews/);
+    const contributorId = contributorIdMatch ? contributorIdMatch[1] : "";
+    return {
+      contributor: {
+        name,
+        profileImageUrl,
+        url,
+        contributorId,
+      },
+    };
+  }
   async collectUrlsWithScrolling(): Promise<{
-    contributor: Contributor;
     reviews: Review[];
   }> {
     const crawledReviews: Review[] = [];
     const checkedReviews: string[] = [];
     let scrollAttempts = 0;
     let retryCount = 0;
-    const name = await this.extractUserName();
-    const profileImageUrl = await this.extractProfileImage();
     const url = this.page.url();
-    const contributorIdMatch = url.match(/contrib\/(\d+)\/reviews/);
-    const contributorId = contributorIdMatch ? contributorIdMatch[1] : "";
-    this.contributor = {
-      name,
-      profileImageUrl,
-      url,
-      contributorId,
-    };
 
     while (scrollAttempts <= 10 && retryCount < this.maxRetries) {
       try {
@@ -120,7 +124,7 @@ export class GoogleMapContributeReviewsPage {
     }
 
     this.log.info(`Finished processing.`);
-    return { contributor: this.contributor, reviews: crawledReviews };
+    return { reviews: crawledReviews };
   }
 
   private async scrollPage(): Promise<void> {

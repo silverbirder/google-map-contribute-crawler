@@ -72,3 +72,22 @@ export const getContributorById = async (
     return contributor;
   }
 };
+
+export const getContributorIdByContributorId = async (
+  contributorId: string
+): Promise<number | null> => {
+  const existingContributor = await db
+    .select()
+    .from(contributor)
+    .where(eq(contributor.contributorId, contributorId))
+    .limit(1);
+
+  if (existingContributor.length === 0) {
+    console.log("Contributor not found with contributorId:", contributorId);
+    return null;
+  } else {
+    const contributorData = existingContributor[0];
+    console.log("Contributor found:", contributorData.id);
+    return contributorData.id;
+  }
+};

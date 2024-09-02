@@ -15,11 +15,20 @@ export const saveReviewIfNotExistsOrUpdate = async (reviewData: Review) => {
   const [placeRecord] = await db
     .select()
     .from(place)
-    .where(eq(place.name, reviewData.place.name))
+    .where(
+      and(
+        eq(place.name, reviewData.place.name),
+        eq(place.address, reviewData.place.address)
+      )
+    )
     .limit(1);
 
-  if (!contributorRecord || !placeRecord) {
-    console.error("Contributor or Place not found");
+  if (!contributorRecord) {
+    console.error("Contributor not found");
+    return;
+  }
+  if (!placeRecord) {
+    console.error("Place not found");
     return;
   }
 
