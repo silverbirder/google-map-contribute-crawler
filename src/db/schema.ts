@@ -4,6 +4,7 @@ import {
   text,
   integer,
   pgTableCreator,
+  pgEnum,
 } from "drizzle-orm/pg-core";
 
 export const createTable = pgTableCreator(
@@ -41,4 +42,18 @@ export const review = createTable("review", {
   url: text("url"),
   createdAt: timestamp("created_at"),
   updatedAt: timestamp("updated_at"),
+});
+
+export const batchStatusEnum = pgEnum("batch_status_enum", [
+  "waiting",
+  "in_progress",
+  "completed",
+  "error",
+]);
+
+export const batchStatus = createTable("batch_status", {
+  id: serial("id").primaryKey(),
+  contributorId: text("contributorId").notNull(),
+  status: batchStatusEnum("status").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });

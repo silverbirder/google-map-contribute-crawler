@@ -36,6 +36,7 @@ export class GoogleMapContributeReviewsPage {
     let scrollAttempts = 0;
     let retryCount = 0;
     const url = this.page.url();
+    this.contributor = (await this.getContributor()).contributor;
 
     while (scrollAttempts <= 10 && retryCount < this.maxRetries) {
       try {

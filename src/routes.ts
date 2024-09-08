@@ -40,6 +40,25 @@ router.addDefaultHandler(async ({ page, log, addRequests }) => {
         await saveReviewIfNotExistsOrUpdate(review);
       })
     );
+    const contributorId = await getContributorIdByContributorId(
+      contributor?.contributorId ?? ""
+    );
+    if (!contributorId) {
+      log.info("Not found contributor", { contributor });
+      return;
+    }
+    const places = await getPlacesByContributorId(contributorId);
+    const requests = places
+      .filter((place) => place.url !== "")
+      .map((place) => ({
+        url: place.url,
+        label: "contrib-place",
+        userData: {
+          contributor,
+          place,
+        },
+      }));
+    await addRequests(requests);
   } else if (type === "contrib-place") {
     // https://www.google.com/maps/contrib/103442456215724044802/reviews
     const { contributor } =
