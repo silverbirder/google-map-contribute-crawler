@@ -1,1 +1,1 @@
-ALTER TABLE "google-map-contrib_place" ADD COLUMN "address" text;
+ALTER TABLE "google-map-contrib_place" ADD COLUMN IF NOT EXISTS "address" text;
