@@ -11,5 +11,5 @@ If you're looking for examples or want to learn more visit:
 ### Docker
 
 ```
-gcloud run deploy google-map-contribute-crawler --source .
+gcloud run jobs deploy google-map-contribute-crawler --source .
 ```

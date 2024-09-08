@@ -23,7 +23,7 @@ const crawler = new PlaywrightCrawler(
     // Comment this option to scrape the full website.
     maxRequestsPerCrawl: 20,
     maxRequestRetries: 2,
-    requestHandlerTimeoutSecs: 3600,
+    requestHandlerTimeoutSecs: 3600 * 3,
     // Comment this option to scrape the full website.
     launchContext: {
       // Here you can set options that are passed to the playwright .launch() function.
