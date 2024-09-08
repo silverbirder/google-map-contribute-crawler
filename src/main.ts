@@ -68,10 +68,7 @@ const main = async (startUrls: string[]): Promise<boolean> => {
     const currentStatus = await getLatestBatchStatusByContributorId(
       contributorId
     );
-    if (
-      currentStatus &&
-      !["completed", "error"].includes(currentStatus.status)
-    ) {
+    if (currentStatus && ["in_progress"].includes(currentStatus.status)) {
       console.log(
         `Batch for contributor ${contributorId} is already in progress.`
       );
