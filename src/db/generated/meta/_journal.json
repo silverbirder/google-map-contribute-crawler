@@ -36,6 +36,13 @@
       "when": 1725768492151,
       "tag": "0004_wooden_madripoor",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1725978462687,
+      "tag": "0005_past_spectrum",
+      "breakpoints": true
     }
   ]
 }

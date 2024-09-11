@@ -1,13 +1,19 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { db } from "./index.js";
 import { batchStatus } from "./schema.js";
 export const getLatestBatchStatusByContributorId = async (
-  contributorId: string
+  contributorId: string,
+  type: "contrib" | "contrib-place" | "place" | "place-contrib"
 ) => {
   const [latestStatus] = await db
     .select()
     .from(batchStatus)
-    .where(eq(batchStatus.contributorId, contributorId))
+    .where(
+      and(
+        eq(batchStatus.contributorId, contributorId),
+        eq(batchStatus.type, type)
+      )
+    )
     .orderBy(desc(batchStatus.createdAt))
     .limit(1);
 
@@ -21,11 +27,13 @@ export const getLatestBatchStatusByContributorId = async (
 
 export const insertBatchStatus = async (
   contributorId: string,
-  status: "waiting" | "in_progress" | "completed" | "error"
+  status: "waiting" | "in_progress" | "completed" | "error",
+  type: "contrib" | "contrib-place" | "place" | "place-contrib"
 ) => {
   await db.insert(batchStatus).values({
     contributorId,
     status,
+    type,
     createdAt: new Date(),
   });
 

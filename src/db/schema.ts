@@ -51,9 +51,17 @@ export const batchStatusEnum = pgEnum("batch_status_enum", [
   "error",
 ]);
 
+export const batchStatusTypeEnum = pgEnum("batch_status_type", [
+  "contrib",
+  "contrib-place",
+  "place",
+  "place-contrib",
+]);
+
 export const batchStatus = createTable("batch_status", {
   id: serial("id").primaryKey(),
   contributorId: text("contributorId").notNull(),
+  type: batchStatusTypeEnum("type").default("contrib"),
   status: batchStatusEnum("status").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });

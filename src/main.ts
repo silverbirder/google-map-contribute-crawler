@@ -61,12 +61,18 @@ const crawler = new PlaywrightCrawler(
 );
 
 const main = async (startUrls: string[]): Promise<boolean> => {
+  const _type = process.env.TYPE ?? "";
+  if (!["contrib", "contrib-place", "place", "place-contrib"].includes(_type)) {
+    return false;
+  }
   if (startUrls.length === 0) return false;
+  const type = _type as "contrib" | "contrib-place" | "place" | "place-contrib";
   const contributorIdMatch = startUrls[0].match(/contrib\/(\d+)\/reviews/);
   const contributorId = contributorIdMatch ? contributorIdMatch[1] : "";
   try {
     const currentStatus = await getLatestBatchStatusByContributorId(
-      contributorId
+      contributorId,
+      type
     );
     if (currentStatus && ["in_progress"].includes(currentStatus.status)) {
       console.log(
@@ -74,12 +80,12 @@ const main = async (startUrls: string[]): Promise<boolean> => {
       );
       return false;
     }
-    await insertBatchStatus(contributorId, "in_progress");
+    await insertBatchStatus(contributorId, "in_progress", type);
     await crawler.run(startUrls);
-    await insertBatchStatus(contributorId, "completed");
+    await insertBatchStatus(contributorId, "completed", type);
   } catch (e) {
     console.error("An error occurred:", e);
-    await insertBatchStatus(contributorId, "error");
+    await insertBatchStatus(contributorId, "error", type);
   } finally {
     conn.end();
   }

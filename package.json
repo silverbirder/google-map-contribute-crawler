@@ -4,6 +4,7 @@
   "type": "module",
   "description": "This is an example of a Crawlee project.",
   "dependencies": {
+    "@google-cloud/run": "^1.4.0",
     "crawlee": "^3.0.0",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.33.0",
@@ -19,7 +20,7 @@
   },
   "scripts": {
     "start": "npm run start:dev",
-    "start:prod": "node dist/main.js",
+    "start:prod": "NODE_ENV=production node dist/main.js",
     "start:dev": "tsx src/main.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
