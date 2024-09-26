@@ -30,9 +30,9 @@ export class GoogleMapContributePlacePage {
   async clickPlaceDetailsAndCollectUrl(): Promise<string> {
     try {
       this.log.info('Clicking the "場所の詳細" button.');
-      const placeDetailsButton = await this.page.locator(
-        'button:has-text("場所の詳細")'
-      );
+      const placeDetailsButton = await this.page
+        .locator('button:has-text("場所の詳細")')
+        .first();
       await placeDetailsButton.click();
 
       this.log.info("Waiting for the place URL to load.");
@@ -54,7 +54,7 @@ export class GoogleMapContributePlacePage {
   }
 
   private async extractUserName(): Promise<string> {
-    const imgElement = await this.page.locator('img[alt*="写真:"]');
+    const imgElement = await this.page.locator('img[alt*="写真:"]').first();
     const altText = await imgElement.getAttribute("alt");
     if (altText) {
       const match = altText.match(/写真:\s*(.*)/);
@@ -65,7 +65,7 @@ export class GoogleMapContributePlacePage {
   }
 
   private async extractProfileImage(): Promise<string> {
-    const imgElement = await this.page.locator('img[alt*="写真:"]');
+    const imgElement = await this.page.locator('img[alt*="写真:"]').first();
     const profileImageUrl = await imgElement.getAttribute("src");
     return profileImageUrl ?? "No image URL found";
   }

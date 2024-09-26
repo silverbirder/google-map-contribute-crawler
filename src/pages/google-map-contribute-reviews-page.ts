@@ -162,6 +162,7 @@ export class GoogleMapContributeReviewsPage {
         const placeImg =
           (await nextReview
             .locator(`img[alt="写真: ${placeName}"]`)
+            .first()
             .getAttribute("src")) ?? "";
         this.log.info(`Place Info`, { placeName, placeImg });
         const reviewId =
@@ -184,6 +185,7 @@ export class GoogleMapContributeReviewsPage {
           const address =
             (await this.page
               .locator('[data-item-id="address"]')
+              .first()
               .getAttribute("aria-label")) ?? "";
           const crawledReview: Review = {
             contributorId: this.contributor?.contributorId ?? "",
@@ -209,6 +211,7 @@ export class GoogleMapContributeReviewsPage {
           const address =
             (await this.page
               .locator('[data-item-id="address"]')
+              .first()
               .getAttribute("aria-label")) ?? "";
           const crawledReview: Review = {
             contributorId: this.contributor?.contributorId ?? "",
@@ -244,7 +247,7 @@ export class GoogleMapContributeReviewsPage {
   }
 
   private async extractUserName(): Promise<string> {
-    const userNameElement = await this.page.locator('h1[role="button"]');
+    const userNameElement = await this.page.locator('h1[role="button"]').first();
     const userName = await userNameElement.textContent();
     return userName?.trim() ?? "Unknown User";
   }
@@ -252,7 +255,7 @@ export class GoogleMapContributeReviewsPage {
   private async extractProfileImage(): Promise<string> {
     const profileImageElement = await this.page.locator(
       'div[aria-label="プロフィール写真"] img'
-    );
+    ).first();
     const profileImageUrl = await profileImageElement.getAttribute("src");
     return profileImageUrl ?? "No image URL found";
   }

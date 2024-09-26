@@ -19,9 +19,9 @@ export class GoogleMapPlacePage {
   async clickReviewTab() {
     this.log.info("Clicking the review tab...");
 
-    const reviewTabButton = await this.page.locator(
-      'button[role="tab"][aria-label*="クチコミ"]'
-    );
+    const reviewTabButton = await this.page
+      .locator('button[role="tab"][aria-label*="クチコミ"]')
+      .first();
     await reviewTabButton.click();
     this.log.info("Review tab clicked.");
     await this.page.waitForSelector(
@@ -79,9 +79,9 @@ export class GoogleMapPlacePage {
   }
 
   private async scrollPage(): Promise<void> {
-    const reviewTabButton = await this.page.locator(
-      'button[role="tab"][aria-label*="クチコミ"]'
-    );
+    const reviewTabButton = await this.page
+      .locator('button[role="tab"][aria-label*="クチコミ"]')
+      .first();
     const boundingBox = await reviewTabButton.boundingBox();
     if (boundingBox) {
       this.log.info(
@@ -159,17 +159,19 @@ export class GoogleMapPlacePage {
   }
 
   async getPlace(): Promise<{ place: Place }> {
-    const name = (await this.page.locator("h1").textContent())?.trim() ?? "";
+    const name =
+      (await this.page.locator("h1").first().textContent())?.trim() ?? "";
     const address =
       (
         await this.page
           .locator('[data-item-id="address"]')
+          .first()
           .getAttribute("aria-label")
       )?.trim() ?? "";
     const url = this.page.url();
-    const profileImageElement = await this.page.locator(
-      `button[aria-label="写真: ${name}"] img`
-    );
+    const profileImageElement = await this.page
+      .locator(`button[aria-label="写真: ${name}"] img`)
+      .first();
     let profileImageUrl = (await profileImageElement.getAttribute("src")) ?? "";
     profileImageUrl = profileImageUrl.replace(
       /=w\d+-h\d+-.*$/,
