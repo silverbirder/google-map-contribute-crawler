@@ -1,5 +1,6 @@
 import { Log } from "crawlee";
 import { type Page } from "playwright";
+import { Contributor } from "../types.js";
 
 export class GoogleMapContributePlacePage {
   readonly page: Page;
@@ -8,6 +9,22 @@ export class GoogleMapContributePlacePage {
   constructor(page: Page, log: Log) {
     this.page = page;
     this.log = log;
+  }
+
+  async getContributor(): Promise<{ contributor: Contributor }> {
+    const name = await this.extractUserName();
+    const profileImageUrl = await this.extractProfileImage();
+    const url = this.page.url();
+    const contributorIdMatch = url.match(/contrib\/(\d+)\/place/);
+    const contributorId = contributorIdMatch ? contributorIdMatch[1] : "";
+    return {
+      contributor: {
+        name,
+        profileImageUrl,
+        url,
+        contributorId,
+      },
+    };
   }
 
   async clickPlaceDetailsAndCollectUrl(): Promise<string> {
@@ -34,5 +51,22 @@ export class GoogleMapContributePlacePage {
       );
       throw error;
     }
+  }
+
+  private async extractUserName(): Promise<string> {
+    const imgElement = await this.page.locator('img[alt*="写真:"]');
+    const altText = await imgElement.getAttribute("alt");
+    if (altText) {
+      const match = altText.match(/写真:\s*(.*)/);
+      const userName = match ? match[1].trim() : "Unknown User";
+      return userName;
+    }
+    return "Unknown User";
+  }
+
+  private async extractProfileImage(): Promise<string> {
+    const imgElement = await this.page.locator('img[alt*="写真:"]');
+    const profileImageUrl = await imgElement.getAttribute("src");
+    return profileImageUrl ?? "No image URL found";
   }
 }

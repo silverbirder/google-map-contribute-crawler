@@ -70,3 +70,31 @@ export const getPlacesByContributorId = async (
   console.log("Places found:", places.map((p) => p.name).join(", "));
   return places;
 };
+
+export const getPlaceByNameAndAddress = async (
+  name: string,
+  address: string
+): Promise<Place | null> => {
+  const existingPlace = await db
+    .select()
+    .from(place)
+    .where(and(eq(place.name, name), eq(place.address, address)))
+    .limit(1);
+
+  if (existingPlace.length > 0) {
+    const placeData = existingPlace[0];
+
+    const result: Place = {
+      name: placeData.name ?? "",
+      url: placeData.url ?? "",
+      profileImageUrl: placeData.profileImageUrl ?? "",
+      address: placeData.address ?? "",
+    };
+
+    console.log("Place found:", result.name);
+    return result;
+  }
+
+  console.log("No place found with name and address:", name, address);
+  return null;
+};

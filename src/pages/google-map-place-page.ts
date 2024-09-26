@@ -6,7 +6,7 @@ export class GoogleMapPlacePage {
   readonly page: Page;
   readonly log: Log;
   readonly contributor: Contributor;
-  readonly place: Place;
+  place: Place;
   private readonly maxRetries = 3;
 
   constructor(page: Page, log: Log, contributor: Contributor, place: Place) {
@@ -129,6 +129,7 @@ export class GoogleMapPlacePage {
         const contributorImg =
           (await this.page
             .locator(`button[aria-label="写真: ${contributorName}"] img`)
+            .first()
             .getAttribute("src")) ?? "";
         crawled.push({
           review: {
@@ -157,13 +158,31 @@ export class GoogleMapPlacePage {
     return false;
   }
 
-  private async expandShortUrl(shortUrl: string): Promise<string> {
-    this.log.info("Navigating to short URL to expand it.", { shortUrl });
-    const newPage = await this.page.context().newPage();
-    await newPage.goto(shortUrl);
-    await newPage.waitForURL((url) => url.pathname.includes("/reviews/"));
-    const expandedUrl = newPage.url();
-    await newPage.close();
-    return expandedUrl;
+  async getPlace(): Promise<{ place: Place }> {
+    const name = (await this.page.locator("h1").textContent())?.trim() ?? "";
+    const address =
+      (
+        await this.page
+          .locator('[data-item-id="address"]')
+          .getAttribute("aria-label")
+      )?.trim() ?? "";
+    const url = this.page.url();
+    const profileImageElement = await this.page.locator(
+      `button[aria-label="写真: ${name}"] img`
+    );
+    let profileImageUrl = (await profileImageElement.getAttribute("src")) ?? "";
+    profileImageUrl = profileImageUrl.replace(
+      /=w\d+-h\d+-.*$/,
+      "=w72-h72-p-k-no-rp-br100"
+    );
+
+    return {
+      place: {
+        name,
+        address,
+        url,
+        profileImageUrl,
+      },
+    };
   }
 }

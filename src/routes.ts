@@ -3,6 +3,7 @@ import {
   GoogleMapContributeReviewsPage,
   GoogleMapPlacePage,
   GoogleAuthPage,
+  GoogleMapContributePlacePage,
 } from "./pages/index.js";
 import {
   getContributorIdByContributorId,
@@ -10,6 +11,7 @@ import {
 } from "./db/contribute.js";
 import { Contributor, Place } from "./types.js";
 import {
+  getPlaceByNameAndAddress,
   getPlacesByContributorId,
   savePlaceIfNotExistsOrUpdate,
 } from "./db/place.js";
@@ -25,6 +27,11 @@ router.addDefaultHandler(async ({ page, log, addRequests }) => {
     page,
     log
   );
+  const googleMapContributePlacePage = new GoogleMapContributePlacePage(
+    page,
+    log
+  );
+
   const type = process.env.TYPE;
   if (type === "contrib") {
     // https://www.google.com/maps/contrib/103442456215724044802/reviews
@@ -65,28 +72,52 @@ router.addDefaultHandler(async ({ page, log, addRequests }) => {
       });
     }
   } else if (type === "contrib-place") {
-    // https://www.google.com/maps/contrib/103442456215724044802/reviews
-    const { contributor } =
-      await googleMapContributeReviewsPage.getContributor();
-    const contributorId = await getContributorIdByContributorId(
-      contributor?.contributorId ?? ""
-    );
-    if (!contributorId) {
-      log.info("Not found contributor", { contributor });
-      return;
-    }
-    const places = await getPlacesByContributorId(contributorId);
-    const requests = places
-      .filter((place) => place.url !== "")
-      .map((place) => ({
-        url: place.url,
-        label: "contrib-place",
-        userData: {
-          contributor,
-          place,
+    // https://www.google.com/maps/contrib/103442456215724044802/reviews OR
+    // https://www.google.com/maps/contrib/101722346324226588907/place
+    const url = page.url();
+    if (url.includes("/reviews")) {
+      log.info("This is a review page");
+      const { contributor } =
+        await googleMapContributeReviewsPage.getContributor();
+      const contributorId = await getContributorIdByContributorId(
+        contributor?.contributorId ?? ""
+      );
+      if (!contributorId) {
+        log.info("Not found contributor", { contributor });
+        return;
+      }
+      const places = await getPlacesByContributorId(contributorId);
+      const requests = places
+        .filter((place) => place.url !== "")
+        .map((place) => ({
+          url: place.url,
+          label: "contrib-place",
+          userData: {
+            contributor,
+            place,
+          },
+        }));
+      await addRequests(requests);
+    } else if (url.includes("/place")) {
+      log.info("This is a place page");
+      const { contributor } =
+        await googleMapContributePlacePage.getContributor();
+      const contributorId = await getContributorIdByContributorId(
+        contributor?.contributorId ?? ""
+      );
+      if (!contributorId) {
+        await saveContributorIfNotExistsOrUpdate(contributor);
+      }
+      const url =
+        await googleMapContributePlacePage.clickPlaceDetailsAndCollectUrl();
+      await addRequests([
+        {
+          url,
+          label: "contrib-place",
+          userData: { contributor, place: null },
         },
-      }));
-    await addRequests(requests);
+      ]);
+    }
   } else if (type === "place") {
   } else if (type === "place-contrib") {
   } else if (type === "auth") {
@@ -105,6 +136,22 @@ router.addHandler("contrib-place", async ({ page, log, request }) => {
     contributor,
     place
   );
+  if (place === null) {
+    const { place: _place } = await googleMapPlacePage.getPlace();
+    const dbPlace = await getPlaceByNameAndAddress(_place.name, _place.address);
+    if (!dbPlace) {
+      await savePlaceIfNotExistsOrUpdate(_place);
+      const dbPlace2 = await getPlaceByNameAndAddress(
+        _place.name,
+        _place.address
+      );
+      if (dbPlace2 !== null) {
+        googleMapPlacePage.place = dbPlace2;
+      }
+    } else {
+      googleMapPlacePage.place = dbPlace;
+    }
+  }
   await googleMapPlacePage.clickReviewTab();
   const crawled = await googleMapPlacePage.collectUrlsWithScrolling();
   await Promise.all(

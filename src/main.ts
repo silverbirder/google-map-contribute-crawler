@@ -11,7 +11,11 @@ import {
   insertBatchStatus,
 } from "./db/batch-status.js";
 
-const startUrls = process.env.START_URLS?.split(",") ?? [];
+const startUrls =
+  process.env.START_URLS?.split(/(?=https:\/\/)/).map((url) =>
+    url.trim().replace(/,$/, "")
+  ) ?? [];
+
 const config = new Configuration({
   persistStorage: false,
 });
@@ -45,7 +49,12 @@ const crawler = new PlaywrightCrawler(
             request.resourceType() === "media"
           ) {
             const url = new URL(request.url());
-            if (url.hostname !== "lh3.googleusercontent.com") {
+            if (
+              ![
+                "lh3.googleusercontent.com",
+                "lh5.googleusercontent.com",
+              ].includes(url.host)
+            ) {
               route.abort();
             } else {
               route.continue();
@@ -67,7 +76,7 @@ const main = async (startUrls: string[]): Promise<boolean> => {
   }
   if (startUrls.length === 0) return false;
   const type = _type as "contrib" | "contrib-place" | "place" | "place-contrib";
-  const contributorIdMatch = startUrls[0].match(/contrib\/(\d+)\/reviews/);
+  const contributorIdMatch = startUrls[0].match(/contrib\/(\d+)\//);
   const contributorId = contributorIdMatch ? contributorIdMatch[1] : "";
   try {
     const currentStatus = await getLatestBatchStatusByContributorId(
